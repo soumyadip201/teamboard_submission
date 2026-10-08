@@ -1,0 +1,189 @@
+{
+  "info": {
+    "name": "TeamBoard - B2B Knowledge Base API",
+    "_postman_id": "5a2a7e72-8f66-4f45-a7e3-1f9a0f6b6b01",
+    "description": "Airtribe TeamBoard assignment collection covering the required 11 scenarios. Run requests in the suggested order from README.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://127.0.0.1:8000/api"},
+    {"key": "username", "value": "acmecorp"},
+    {"key": "password", "value": "securepass123"},
+    {"key": "company_name", "value": "Acme Corp"},
+    {"key": "email", "value": "dev@acmecorp.com"},
+    {"key": "access_token", "value": ""},
+    {"key": "admin_access_token", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "01 - Register new company",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\",\n  \"company_name\": \"{{company_name}}\",\n  \"email\": \"{{email}}\"\n}"},
+        "url": {"raw": "{{base_url}}/auth/register/", "host": ["{{base_url}}"], "path": ["auth", "register", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('201 Created', function () { pm.response.to.have.status(201); });",
+        "const json = pm.response.json();",
+        "pm.expect(json.api_key).to.be.a('string');",
+        "pm.expect(json.access).to.be.a('string');",
+        "pm.collectionVariables.set('access_token', json.access);"
+      ]}}]
+    },
+    {
+      "name": "02 - Register duplicate username",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\",\n  \"company_name\": \"Duplicate Corp\",\n  \"email\": \"duplicate@example.com\"\n}"},
+        "url": {"raw": "{{base_url}}/auth/register/", "host": ["{{base_url}}"], "path": ["auth", "register", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('400 Bad Request', function () { pm.response.to.have.status(400); });",
+        "pm.expect(pm.response.json().error).to.include('Username already exists');"
+      ]}}]
+    },
+    {
+      "name": "03 - Login valid credentials",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"},
+        "url": {"raw": "{{base_url}}/auth/login/", "host": ["{{base_url}}"], "path": ["auth", "login", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+        "const json = pm.response.json();",
+        "pm.expect(json.access).to.be.a('string');",
+        "pm.collectionVariables.set('access_token', json.access);"
+      ]}}]
+    },
+    {
+      "name": "04 - Login wrong password",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"definitely-wrong-password\"\n}"},
+        "url": {"raw": "{{base_url}}/auth/login/", "host": ["{{base_url}}"], "path": ["auth", "login", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('401 Unauthorized', function () { pm.response.to.have.status(401); });"
+      ]}}]
+    },
+    {
+      "name": "05 - Query KB without token",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"search\": \"select_related\"\n}"},
+        "url": {"raw": "{{base_url}}/kb/query/", "host": ["{{base_url}}"], "path": ["kb", "query", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('401 Unauthorized', function () { pm.response.to.have.status(401); });"
+      ]}}]
+    },
+    {
+      "name": "06 - Query KB with results",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "body": {"mode": "raw", "raw": "{\n  \"search\": \"select_related\"\n}"},
+        "url": {"raw": "{{base_url}}/kb/query/", "host": ["{{base_url}}"], "path": ["kb", "query", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+        "const json = pm.response.json();",
+        "pm.expect(json.count).to.be.above(0);",
+        "pm.expect(json.results).to.be.an('array');"
+      ]}}]
+    },
+    {
+      "name": "07 - Query KB with no matching results",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "body": {"mode": "raw", "raw": "{\n  \"search\": \"term-that-will-not-match-any-entry-xyz\"\n}"},
+        "url": {"raw": "{{base_url}}/kb/query/", "host": ["{{base_url}}"], "path": ["kb", "query", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+        "const json = pm.response.json();",
+        "pm.expect(json.count).to.eql(0);",
+        "pm.expect(json.results).to.eql([]);"
+      ]}}]
+    },
+    {
+      "name": "08 - Query KB missing search",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "body": {"mode": "raw", "raw": "{}"},
+        "url": {"raw": "{{base_url}}/kb/query/", "host": ["{{base_url}}"], "path": ["kb", "query", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('400 Bad Request', function () { pm.response.to.have.status(400); });"
+      ]}}]
+    },
+    {
+      "name": "09 - Usage summary CLIENT token",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+        "url": {"raw": "{{base_url}}/admin/usage-summary/", "host": ["{{base_url}}"], "path": ["admin", "usage-summary", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('403 Forbidden', function () { pm.response.to.have.status(403); });"
+      ]}}]
+    },
+    {
+      "name": "Admin Login Helper - run after promoting Company to ADMIN",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"},
+        "url": {"raw": "{{base_url}}/auth/login/", "host": ["{{base_url}}"], "path": ["auth", "login", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+        "pm.collectionVariables.set('admin_access_token', pm.response.json().access);"
+      ]}}]
+    },
+    {
+      "name": "10 - Usage summary ADMIN token",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{admin_access_token}}"}],
+        "url": {"raw": "{{base_url}}/admin/usage-summary/", "host": ["{{base_url}}"], "path": ["admin", "usage-summary", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+        "const json = pm.response.json();",
+        "pm.expect(json).to.have.property('total_queries');",
+        "pm.expect(json).to.have.property('active_companies');",
+        "pm.expect(json.top_search_terms).to.be.an('array');"
+      ]}}]
+    },
+    {
+      "name": "11 - Verify QueryLog in pgAdmin",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "description": "Manual evidence step. Open pgAdmin, query api_querylog, and verify a row exists for the Postman KB query scenarios.",
+        "url": {"raw": "{{base_url}}/admin/usage-summary/", "host": ["{{base_url}}"], "path": ["admin", "usage-summary", ""]}
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('Manual evidence step - verify api_querylog in pgAdmin', function () { pm.expect(true).to.be.true; });"
+      ]}}]
+    }
+  ]
+}
